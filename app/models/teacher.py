@@ -44,5 +44,7 @@ class TeacherMaster(Base):
     )
 
     # Relationships
-    user = relationship("UserMaster", back_populates="teacher_profile")
-    notes = relationship("TeacherNote", back_populates="teacher", cascade="all, delete-orphan")
+    user        = relationship("UserMaster", back_populates="teacher_profile")
+    notes       = relationship("TeacherNote",      back_populates="teacher", cascade="all, delete-orphan")
+    students    = relationship("StudentMaster",     back_populates="teacher", cascade="all, delete-orphan")
+    assessments = relationship("Assessment",        back_populates="teacher", cascade="all, delete-orphan")

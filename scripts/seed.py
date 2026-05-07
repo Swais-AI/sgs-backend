@@ -2,8 +2,8 @@
 Seed script — creates the demo teacher account used by the frontend.
 Run once after migrations: python scripts/seed.py
 
-Credentials match the dummyData.json in the Next.js frontend:
-  email: priya.sharma@swais.edu
+Credentials:
+  email: sandipani.acharya@swais.edu
   password: password123
 """
 import sys
@@ -24,15 +24,15 @@ def seed():
     db = SessionLocal()
     try:
         # Check if already seeded
-        existing = db.query(UserMaster).filter_by(email="priya.sharma@swais.edu").first()
+        existing = db.query(UserMaster).filter_by(email="sandipani.acharya@swais.edu").first()
         if existing:
             print("✅ Seed data already exists — skipping.")
             return
 
         # Create user
         user = UserMaster(
-            username="priya.sharma",
-            email="priya.sharma@swais.edu",
+            username="sandipani.acharya",
+            email="sandipani.acharya@swais.edu",
             password_hash=get_password_hash("password123"),
             role=UserRole.teacher,
             is_active=True,
@@ -43,10 +43,10 @@ def seed():
         # Create teacher profile
         teacher = TeacherMaster(
             user_id=user.user_id,
-            first_name="Dr. Priya",
-            last_name="Sharma",
+            first_name="Acharya",
+            last_name="Sandipani",
             phone="9876543210",
-            avatar_initials="PS",
+            avatar_initials="AS",
             subject="Social Studies",
             class_assigned="8",
             section="A",
@@ -56,7 +56,7 @@ def seed():
         db.add(teacher)
         db.commit()
 
-        print(f"✅ Seeded teacher: priya.sharma@swais.edu / password123")
+        print(f"✅ Seeded teacher: sandipani.acharya@swais.edu / password123")
         print(f"   user_id={user.user_id}, teacher_id={teacher.teacher_id}")
     except Exception as e:
         db.rollback()
