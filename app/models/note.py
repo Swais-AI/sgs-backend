@@ -24,13 +24,13 @@ class ContentType(str, enum.Enum):
 
 
 class TeacherNote(Base):
-    __tablename__ = "teacher_notes"
+    __tablename__ = "sgs_faculty_notes"
 
     note_id = Column(Integer, primary_key=True, autoincrement=True)
 
     teacher_id = Column(
         Integer,
-        ForeignKey("teacher_master.teacher_id", ondelete="CASCADE"),
+        ForeignKey("sgs_teacher_master.teacher_id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )

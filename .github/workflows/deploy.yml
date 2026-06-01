@@ -1,0 +1,64 @@
+name: Deploy Swais Backend
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            REPO_DIR="/home/ubuntu/swais-backend"
+            REPO_URL="https://github.com/Swais-AI/bhuvan-backend.git"
+
+            # Clone or pull latest code
+            if [ -d "$REPO_DIR/.git" ]; then
+              echo ">>> Pull latest code..."
+              cd $REPO_DIR
+              git pull origin main
+            else
+              echo ">>> Clone repo..."
+              git clone $REPO_URL $REPO_DIR
+              cd $REPO_DIR
+            fi
+
+            cd $REPO_DIR
+
+            # Setup Python virtual environment
+            echo ">>> Setup Python venv..."
+            python3 -m venv venv
+            source venv/bin/activate
+
+            # Install dependencies
+            echo ">>> Install dependencies..."
+            pip install --upgrade pip
+            pip install -r requirements.txt
+
+            # Run database migrations
+            echo ">>> Run migrations..."
+            alembic upgrade head
+
+            # Start or restart with pm2
+            echo ">>> Start/restart app..."
+            if pm2 describe swais-backend > /dev/null 2>&1; then
+              pm2 restart swais-backend
+            else
+              pm2 start "$REPO_DIR/venv/bin/uvicorn" \
+                --name swais-backend \
+                --interpreter none \
+                -- app.main:app --host 0.0.0.0 --port 8090
+            fi
+
+            pm2 save
+            echo ">>> Deploy complete!"

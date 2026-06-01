@@ -10,9 +10,9 @@ class Settings(BaseSettings):
 
     APP_ENV: str = "development"
     APP_HOST: str = "0.0.0.0"
-    APP_PORT: int = 8000
+    APP_PORT: int = 8090
 
-    CORS_ORIGINS: str = "http://localhost:3000"
+    CORS_ORIGINS: str = "http://localhost:3000,http://98.130.136.190:4001"
 
     @property
     def cors_origins_list(self) -> List[str]:

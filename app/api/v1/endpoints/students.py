@@ -15,12 +15,13 @@ def list_students(
     teacher: TeacherMaster = Depends(get_current_teacher),
     db: Session = Depends(get_db),
 ):
-    students = (
-        db.query(StudentMaster)
-        .filter(StudentMaster.teacher_id == teacher.teacher_id)
-        .order_by(StudentMaster.roll_number)
-        .all()
-    )
+    # Students are linked to a class, not directly to a teacher — filter by class_id + section
+    query = db.query(StudentMaster).filter(StudentMaster.is_active == True)
+    if teacher.class_id:
+        query = query.filter(StudentMaster.class_id == teacher.class_id)
+    if teacher.section_1:
+        query = query.filter(StudentMaster.section == teacher.section_1)
+    students = query.order_by(StudentMaster.roll_no).all()
     return StudentListResponse(
         students=[StudentOut.model_validate(s) for s in students],
         total=len(students),
