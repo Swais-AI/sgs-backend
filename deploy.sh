@@ -25,7 +25,11 @@ pip install --no-cache-dir -q -r requirements.txt
 echo "🗄️  Running database migrations..."
 alembic upgrade head
 
-# 5. Clean up to save disk space
+# 5. Run seed script (skips if already seeded)
+echo "🌱 Running seed script..."
+python scripts/seed.py
+
+# 6. Clean up to save disk space
 echo "🧹 Cleaning up..."
 find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 find . -type f -name "*.pyc" -delete 2>/dev/null || true
