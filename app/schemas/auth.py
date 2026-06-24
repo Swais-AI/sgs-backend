@@ -17,3 +17,14 @@ class TokenResponse(BaseModel):
     section: str | None = None
     avatar_initials: str | None = None
     school_name: str | None = None
+
+
+class MeResponse(BaseModel):
+    teacher_id: int
+    name: str
+    email: str
+    subject: str | None = None
+    class_assigned: str | None = None
+    section: str | None = None
+    avatar_initials: str | None = None
+    school_name: str | None = None
