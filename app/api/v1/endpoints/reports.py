@@ -17,10 +17,11 @@ def get_report(
     db: Session = Depends(get_db),
 ):
     tid = teacher.teacher_id
+    # Students linked via class_id (no direct teacher_id FK in sgs schema)
     students = (
         db.query(StudentMaster)
-        .filter(StudentMaster.teacher_id == tid)
-        .order_by(StudentMaster.roll_number)
+        .filter(StudentMaster.class_id == teacher.class_id)
+        .order_by(StudentMaster.roll_no)
         .all()
     )
     assessments = db.query(Assessment).filter(Assessment.teacher_id == tid).all()
@@ -29,41 +30,41 @@ def get_report(
     rows: list[StudentReportRow] = []
     for student in students:
         marks_list = [
-            r.marks_obtained
+            float(r.marks_obtained)
             for r in student.results
-            if r.marks_obtained is not None
+            if not r.is_absent and r.marks_obtained is not None
             and r.assessment.teacher_id == tid
         ]
-        # percentage per assessment (marks_obtained / max_marks * 100)
-        pct_list = []
-        for r in student.results:
-            if r.marks_obtained is not None and r.assessment.teacher_id == tid:
-                pct_list.append(r.marks_obtained / r.assessment.max_marks * 100)
+        pct_list = [
+            float(r.marks_obtained) / float(r.assessment.max_marks) * 100
+            for r in student.results
+            if not r.is_absent and r.marks_obtained is not None
+            and r.assessment.teacher_id == tid
+        ]
 
         avg_pct = round(sum(pct_list) / len(pct_list), 1) if pct_list else None
         avg_raw = round(sum(marks_list) / len(marks_list), 1) if marks_list else None
 
         rows.append(StudentReportRow(
             student_id=student.student_id,
-            name=student.name,
-            roll_number=student.roll_number,
+            name=student.full_name or "",
+            roll_number=student.roll_no or "",
             total_assessed=len(marks_list),
             average_marks=avg_raw,
             average_percent=avg_pct,
             highest_marks=max(marks_list) if marks_list else None,
             lowest_marks=min(marks_list) if marks_list else None,
-            rank=0,  # assigned below
+            rank=0,
         ))
 
-    # Sort by average_percent desc, then roll_number asc
     rows.sort(key=lambda r: (-(r.average_percent or 0), r.roll_number))
     for i, row in enumerate(rows, start=1):
         row.rank = i
 
     return ReportResponse(
         teacher_id=tid,
-        class_name=teacher.class_assigned or "8",
-        section=teacher.section or "A",
+        class_name=str(teacher.class_id) if teacher.class_id else "8",
+        section=teacher.section_1 or "A",
         total_students=len(students),
         total_assessments=total_assessments,
         students=rows,

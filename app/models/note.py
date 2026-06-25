@@ -1,53 +1,35 @@
 """
-TeacherNote — teacher_notes table (new table created by our migration).
-Stores typed, voice-transcribed, and handwritten notes created by faculty.
-canvasImageUrl stores base64 PNG for handwritten notes (TODO: move to S3).
-
-This content is the source material for:
-  - Student/parent delivery (voice TTS via AWS Polly — future)
-  - Chapter-wise curriculum notes
+TeacherNote — maps to sgs_teacher_notes table.
+Rich note data (title, content, chapter, content_type, tags) is stored
+as a JSON string in the `notes` column since the sgs table has no separate fields.
 """
 
 import enum
-from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Text, ForeignKey, DateTime, Enum as SAEnum, ARRAY
+from sqlalchemy import Column, BigInteger, String, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import JSONB
 
 from app.db.session import Base
 
 
 class ContentType(str, enum.Enum):
-    typed = "typed"
-    voice = "voice"
+    typed       = "typed"
+    voice       = "voice"
     handwritten = "handwritten"
 
 
 class TeacherNote(Base):
-    __tablename__ = "teacher_notes"
+    __tablename__ = "sgs_teacher_notes"
 
-    note_id = Column(Integer, primary_key=True, autoincrement=True)
-
+    notes_id   = Column(BigInteger, primary_key=True)
     teacher_id = Column(
-        Integer,
-        ForeignKey("teacher_master.teacher_id", ondelete="CASCADE"),
+        BigInteger,
+        ForeignKey("sgs_teacher_master.teacher_id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
+    class_id   = Column(BigInteger, nullable=True)
+    section_1  = Column(String(50), nullable=True)
+    notes      = Column(String, nullable=True)   # stores JSON: {title, content, chapter, ...}
+    created_at = Column(DateTime, nullable=True)
 
-    title = Column(String(500), nullable=False)
-    content = Column(Text, nullable=True)               # Text content (typed or voice transcript)
-    chapter = Column(String(255), nullable=False)       # e.g. "Chapter 1 - The Indian Constitution"
-    content_type = Column(SAEnum(ContentType), nullable=False, default=ContentType.typed)
-    canvas_image_url = Column(Text, nullable=True)      # base64 PNG; TODO: replace with S3 URL
-    tags = Column(JSONB, nullable=True, default=list)   # ["constitution", "preamble"]
-
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-    )
-
-    # Relationship
     teacher = relationship("TeacherMaster", back_populates="notes")

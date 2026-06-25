@@ -1,38 +1,32 @@
-from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Enum as SAEnum
+"""
+StudentMaster — maps to sgs_student_master table.
+Students are linked to a teacher via class_id (teacher.class_id == student.class_id).
+"""
+
+from sqlalchemy import Column, BigInteger, Integer, String, Boolean, DateTime
 from sqlalchemy.orm import relationship
-import enum
 
 from app.db.session import Base
 
 
-class Gender(str, enum.Enum):
-    male = "male"
-    female = "female"
-    other = "other"
-
-
 class StudentMaster(Base):
-    __tablename__ = "student_master"
+    __tablename__ = "sgs_student_master"
 
-    student_id   = Column(Integer, primary_key=True, autoincrement=True)
-    teacher_id   = Column(Integer, ForeignKey("teacher_master.teacher_id", ondelete="CASCADE"), nullable=False, index=True)
+    student_id      = Column(BigInteger, primary_key=True)
+    admission_no    = Column(String(50),  nullable=True)
+    full_name       = Column(String(255), nullable=True)
+    class_id        = Column(BigInteger,  nullable=True)
+    section         = Column(String(50),  nullable=True)
+    roll_no         = Column(String(50),  nullable=True)
+    student_phone   = Column(String(50),  nullable=True)
+    student_email   = Column(String(255), nullable=True)
+    guardian_name   = Column(String(255), nullable=True)
+    guardian_phone  = Column(String(50),  nullable=True)
+    guardian_email  = Column(String(255), nullable=True)
+    is_active       = Column(Boolean,     nullable=True)
+    created_datetime  = Column(DateTime,  nullable=True)
+    modified_datetime = Column(DateTime,  nullable=True)
+    record_status   = Column(String(50),  nullable=True)
+    version_no      = Column(Integer,     nullable=True)
 
-    name         = Column(String(150), nullable=False)
-    roll_number  = Column(String(20),  nullable=False)
-    gender       = Column(SAEnum(Gender), nullable=True)
-    parent_name  = Column(String(150), nullable=True)
-    parent_phone = Column(String(20),  nullable=True)
-    class_name   = Column(String(10),  nullable=True)   # "8"
-    section      = Column(String(10),  nullable=True)   # "A"
-
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-    )
-
-    # Relationships
-    teacher = relationship("TeacherMaster", back_populates="students")
     results = relationship("AssessmentResult", back_populates="student", cascade="all, delete-orphan")

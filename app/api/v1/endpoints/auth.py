@@ -1,10 +1,14 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Header, status
 from sqlalchemy.orm import Session
+from typing import Optional
 
 from app.api.deps import get_current_teacher
+from app.core.config import settings
+from app.core.security import create_access_token
 from app.db.session import get_db
 from app.models.teacher import TeacherMaster
-from app.schemas.auth import LoginRequest, MeResponse, TokenResponse
+from app.models.user import UserMaster
+from app.schemas.auth import LoginRequest, MeResponse, SSOTokenRequest, TokenResponse
 from app.services.auth_service import authenticate_teacher
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -35,6 +39,51 @@ def me(teacher: TeacherMaster = Depends(get_current_teacher)):
         teacher_id=teacher.teacher_id,
         name=teacher.full_name,
         email=teacher.email_id,
+        subject=teacher.subject_name,
+        class_assigned=str(teacher.class_id) if teacher.class_id else None,
+        section=teacher.section_1,
+        avatar_initials=(teacher.full_name or "")[:2].upper() or None,
+        school_name=None,
+    )
+
+
+@router.post("/sso-token", response_model=TokenResponse)
+def sso_token(
+    payload: SSOTokenRequest,
+    x_sso_secret: Optional[str] = Header(default=None),
+    db: Session = Depends(get_db),
+):
+    """
+    Internal SSO endpoint — called by staging after Google OAuth.
+    Exchanges a verified teacher email for a JWT without requiring a password.
+    Protected by a shared secret header (X-SSO-Secret).
+    """
+    if not settings.SSO_SECRET or x_sso_secret != settings.SSO_SECRET:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid SSO secret")
+
+    email = payload.email.lower()
+
+    teacher = db.query(TeacherMaster).filter(
+        TeacherMaster.email_id == email,
+        TeacherMaster.is_active == True,
+    ).first()
+    if not teacher:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Teacher not found")
+
+    user = db.query(UserMaster).filter(UserMaster.login_id == email).first()
+    user_id = user.user_id if user else teacher.teacher_id
+
+    token = create_access_token(data={
+        "sub": str(user_id),
+        "teacher_id": teacher.teacher_id,
+        "role": "teacher",
+    })
+
+    return TokenResponse(
+        access_token=token,
+        teacher_id=teacher.teacher_id,
+        name=teacher.full_name,
+        email=email,
         subject=teacher.subject_name,
         class_assigned=str(teacher.class_id) if teacher.class_id else None,
         section=teacher.section_1,

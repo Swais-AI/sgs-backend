@@ -1,18 +1,14 @@
-from datetime import datetime
 from typing import Optional
-from pydantic import BaseModel
-from app.models.student import Gender
+from pydantic import BaseModel, Field
 
 
 class StudentOut(BaseModel):
-    student_id:   int
-    name:         str
-    roll_number:  str
-    gender:       Optional[Gender]
-    parent_name:  Optional[str]
-    parent_phone: Optional[str]
-    class_name:   Optional[str]
-    section:      Optional[str]
+    student_id:    int
+    full_name:     Optional[str] = None
+    roll_no:       Optional[str] = None
+    guardian_name: Optional[str] = None
+    guardian_phone: Optional[str] = None
+    section:       Optional[str] = None
 
     model_config = {"from_attributes": True}
 

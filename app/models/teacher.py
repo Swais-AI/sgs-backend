@@ -1,50 +1,29 @@
 """
 TeacherMaster — teacher profile data.
-Linked to users_master via user_id FK (added by migration).
-Stores school, subject, class, section and other profile info.
+Maps to sgs_teacher_master table.
+Linked to sgs_users_masters via email_id (no FK constraint).
 """
 
-from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Text
+from sqlalchemy import Column, BigInteger, String, Boolean, DateTime
 from sqlalchemy.orm import relationship
 
 from app.db.session import Base
 
 
 class TeacherMaster(Base):
-    __tablename__ = "teacher_master"
+    __tablename__ = "sgs_teacher_master"
 
-    teacher_id = Column(Integer, primary_key=True, autoincrement=True)
+    teacher_id   = Column(BigInteger, primary_key=True)
+    full_name    = Column(String(255), nullable=False)
+    subject_name = Column(String(255), nullable=True)
+    class_id     = Column(BigInteger, nullable=True)
+    section_1    = Column(String(50), nullable=True)
+    role         = Column(String(50), nullable=True)
+    email_id     = Column(String(255), nullable=False, unique=True, index=True)
+    section_2    = Column(String(50), nullable=True)
+    phone        = Column(BigInteger, nullable=True)
+    is_active    = Column(Boolean, nullable=True)
+    created_at   = Column(DateTime, nullable=True)
 
-    # Link to users_master — added via our migration
-    user_id = Column(
-        Integer,
-        ForeignKey("users_master.user_id", ondelete="CASCADE"),
-        unique=True,
-        nullable=False,
-        index=True,
-    )
-
-    # Teacher profile fields (from DB schema)
-    first_name = Column(String(100), nullable=False)
-    last_name = Column(String(100), nullable=False)
-    phone = Column(String(20), nullable=True)          # stored as string, not INT
-    avatar_initials = Column(String(5), nullable=True)  # e.g. "PS"
-    subject = Column(String(100), nullable=True)
-    class_assigned = Column(String(10), nullable=True)  # e.g. "8"
-    section = Column(String(10), nullable=True)         # e.g. "A"
-    school_name = Column(String(255), nullable=True)
-    employee_code = Column(String(50), nullable=True)
-    address = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    updated_at = Column(
-        DateTime(timezone=True),
-        default=lambda: datetime.now(timezone.utc),
-        onupdate=lambda: datetime.now(timezone.utc),
-    )
-
-    # Relationships
-    user        = relationship("UserMaster", back_populates="teacher_profile")
-    notes       = relationship("TeacherNote",      back_populates="teacher", cascade="all, delete-orphan")
-    students    = relationship("StudentMaster",     back_populates="teacher", cascade="all, delete-orphan")
-    assessments = relationship("Assessment",        back_populates="teacher", cascade="all, delete-orphan")
+    notes       = relationship("TeacherNote",  back_populates="teacher", cascade="all, delete-orphan")
+    assessments = relationship("Assessment",   back_populates="teacher", cascade="all, delete-orphan")
