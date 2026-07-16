@@ -362,7 +362,7 @@ async def text_to_speech(text: str, language: str, voice: str, teacher) -> dict:
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             r = await client.post(
-                f"{settings.AI_SERVICE_URL}/api/v1/ai/teacher/text-to-speech",
+                f"{settings.AI_SERVICE_URL}/api/v1/ai/teacher/speak",
                 json=payload,
             )
             r.raise_for_status()

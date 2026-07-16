@@ -2,7 +2,8 @@ from sqlalchemy.orm import Session
 
 from app.models.user import UserMaster
 from app.models.teacher import TeacherMaster
-from app.models.assessment import Assessment
+from app.models.class_master import ClassMaster
+from app.models.student import StudentMaster
 from app.core.security import verify_password, create_access_token
 from app.schemas.auth import LoginRequest, TokenResponse
 
@@ -18,6 +19,29 @@ def _class_display(class_name: str) -> str:
         return f"{n}{suffix} Grade"
     except (ValueError, TypeError):
         return str(class_name)
+
+
+def get_class_context(db: Session, teacher: TeacherMaster) -> tuple[str | None, int]:
+    """
+    Resolve a teacher's display class name (from sgs_class_master) and the
+    count of active students in that class. Used by both /login and /me so
+    the header/dashboard always show real values.
+    """
+    if not teacher.class_id:
+        return None, 0
+
+    cls = db.query(ClassMaster).filter(ClassMaster.class_id == teacher.class_id).first()
+    class_name = (cls.class_name if cls and cls.class_name else _class_display(teacher.class_id))
+
+    total_students = (
+        db.query(StudentMaster)
+        .filter(
+            StudentMaster.class_id == teacher.class_id,
+            StudentMaster.is_active.is_(True),
+        )
+        .count()
+    )
+    return class_name, total_students
 
 
 def authenticate_teacher(db: Session, payload: LoginRequest) -> TokenResponse:
@@ -46,15 +70,8 @@ def authenticate_teacher(db: Session, payload: LoginRequest) -> TokenResponse:
         }
     )
 
-    # Resolve human-readable class name from assessments (class_id is a DB FK, not display name)
-    assessment = db.query(Assessment).filter(
-        Assessment.teacher_id == teacher.teacher_id
-    ).first()
-    class_display = (
-        _class_display(assessment.class_name)
-        if assessment and assessment.class_name
-        else (_class_display(teacher.class_id) if teacher.class_id else None)
-    )
+    # Resolve human-readable class name + live student count from master tables
+    class_display, total_students = get_class_context(db, teacher)
 
     return TokenResponse(
         access_token=token,
@@ -66,4 +83,5 @@ def authenticate_teacher(db: Session, payload: LoginRequest) -> TokenResponse:
         section=teacher.section_1,
         avatar_initials=None,
         school_name=None,
+        total_students=total_students,
     )

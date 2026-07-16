@@ -9,7 +9,7 @@ from app.db.session import get_db
 from app.models.teacher import TeacherMaster
 from app.models.user import UserMaster
 from app.schemas.auth import LoginRequest, MeResponse, SSOTokenRequest, TokenResponse
-from app.services.auth_service import authenticate_teacher
+from app.services.auth_service import authenticate_teacher, get_class_context
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -30,20 +30,25 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/me", response_model=MeResponse)
-def me(teacher: TeacherMaster = Depends(get_current_teacher)):
+def me(
+    teacher: TeacherMaster = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
     """
     Returns the current teacher's profile from a valid JWT.
     Used by the faculty app on load to restore session from token.
     """
+    class_display, total_students = get_class_context(db, teacher)
     return MeResponse(
         teacher_id=teacher.teacher_id,
         name=teacher.full_name,
         email=teacher.email_id,
         subject=teacher.subject_name,
-        class_assigned=str(teacher.class_id) if teacher.class_id else None,
+        class_assigned=class_display,
         section=teacher.section_1,
         avatar_initials=(teacher.full_name or "")[:2].upper() or None,
         school_name=None,
+        total_students=total_students,
     )
 
 

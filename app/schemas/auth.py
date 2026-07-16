@@ -21,6 +21,7 @@ class TokenResponse(BaseModel):
     section: str | None = None
     avatar_initials: str | None = None
     school_name: str | None = None
+    total_students: int | None = None
 
 
 class MeResponse(BaseModel):
@@ -32,3 +33,4 @@ class MeResponse(BaseModel):
     section: str | None = None
     avatar_initials: str | None = None
     school_name: str | None = None
+    total_students: int | None = None

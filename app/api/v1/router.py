@@ -4,6 +4,7 @@ from app.api.v1.endpoints import (
     auth, notes, chapters, students, assessments, reports,
     lesson_plans, question_papers, corrections, alerts,
     virtual_slate, analytics, translate, speech, content_search,
+    subjects, assignments, notices,
 )
 
 api_router = APIRouter()
@@ -22,3 +23,6 @@ api_router.include_router(analytics.router)
 api_router.include_router(translate.router)
 api_router.include_router(speech.router)
 api_router.include_router(content_search.router)
+api_router.include_router(subjects.router)
+api_router.include_router(assignments.router)
+api_router.include_router(notices.router)
