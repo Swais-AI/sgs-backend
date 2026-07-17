@@ -15,7 +15,7 @@ class StudentReportRow(BaseModel):
 
 
 class ReportResponse(BaseModel):
-    teacher_id:    int
+    teacher_id:    str
     class_name:    str
     section:       str
     total_students: int
