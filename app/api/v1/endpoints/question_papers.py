@@ -12,6 +12,7 @@ class QuestionPaperRequest(BaseModel):
     chapterId: int
     difficulty: str = "Medium"
     totalMarks: int = 50
+    questionType: str | None = None   # None = all question types
 
 
 @router.post("/generate")
@@ -23,5 +24,6 @@ async def generate(
         chapter_id=body.chapterId,
         difficulty=body.difficulty,
         total_marks=body.totalMarks,
+        question_type=body.questionType,
         teacher=teacher,
     )

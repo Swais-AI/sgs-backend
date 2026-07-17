@@ -172,11 +172,13 @@ async def generate_question_paper(
     difficulty: str,
     total_marks: int,
     teacher,
+    question_type: str | None = None,
 ) -> dict:
     payload = {
         "chapterId": chapter_id,
         "difficulty": difficulty,
         "totalMarks": total_marks,
+        "questionType": question_type,
         "userInfo": _user_info(teacher),
     }
     try:
