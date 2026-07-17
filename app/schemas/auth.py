@@ -13,7 +13,7 @@ class SSOTokenRequest(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
-    teacher_id: int
+    teacher_id: str
     name: str
     email: str
     subject: str | None = None
@@ -25,7 +25,7 @@ class TokenResponse(BaseModel):
 
 
 class MeResponse(BaseModel):
-    teacher_id: int
+    teacher_id: str
     name: str
     email: str
     subject: str | None = None
