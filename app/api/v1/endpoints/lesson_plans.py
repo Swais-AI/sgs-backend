@@ -38,12 +38,35 @@ def list_plans(
     teacher: TeacherMaster = Depends(get_current_teacher),
     db: Session = Depends(get_db),
 ):
-    plans = (
+    records = (
         db.query(TeacherLessonPlan)
         .filter(TeacherLessonPlan.teacher_id == teacher.teacher_id)
         .order_by(TeacherLessonPlan.created_at.desc())
         .all()
     )
+
+    plans: list[LessonPlanOut] = []
+    for record in records:
+        # plan_data holds the full structured plan as a JSON string.
+        try:
+            full = json.loads(record.plan_data) if record.plan_data else {}
+        except (ValueError, TypeError):
+            full = {}
+        # Backfill summary fields so the viewer always has them, even for
+        # legacy rows saved before a field existed.
+        full.setdefault("title", record.title)
+        full.setdefault("chapter_text", record.chapter_text)
+        full.setdefault("duration_minutes", record.duration_minutes)
+
+        plans.append(LessonPlanOut(
+            lesson_plan_id=record.lesson_plan_id,
+            title=record.title,
+            chapter_text=record.chapter_text,
+            duration_minutes=record.duration_minutes,
+            created_at=record.created_at,
+            plan=full,
+        ))
+
     return LessonPlanListResponse(plans=plans)
 
 

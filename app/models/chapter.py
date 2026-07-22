@@ -10,6 +10,7 @@ class SgsChapterContent(Base):
     chapter_id         = Column(BigInteger, nullable=True)
     content_title      = Column(String, nullable=True)
     chapter_name       = Column(String, nullable=True)
+    full_text_content  = Column(Text, nullable=True)
     is_active          = Column(Boolean, default=True)
     record_status      = Column(String, nullable=True)
     version_no         = Column(Integer, nullable=True)

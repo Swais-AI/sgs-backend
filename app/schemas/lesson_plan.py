@@ -19,6 +19,9 @@ class LessonPlanOut(BaseModel):
     chapter_text: Optional[str]
     duration_minutes: Optional[int]
     created_at: Optional[datetime]
+    # Full structured plan (parsed from the stored plan_data JSON) so the
+    # "View" action can render the whole plan without a second request.
+    plan: Optional[dict] = None
 
     class Config:
         from_attributes = True
