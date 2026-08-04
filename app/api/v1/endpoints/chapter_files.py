@@ -23,8 +23,7 @@ from app.services import s3_service
 
 router = APIRouter(prefix="/chapters", tags=["chapter-files"])
 
-MAX_BYTES = 25 * 1024 * 1024  # 25 MB
-ALLOWED_TYPES = {"application/pdf"}
+MAX_BYTES = 50 * 1024 * 1024  # 50 MB — any file type is accepted
 
 
 def _serialize(row: FileStorageMetadata) -> dict:
@@ -53,14 +52,13 @@ def _chapter_context(db: Session, chapter_id: int) -> tuple[ChapterMaster, Optio
     return chapter, subject_id, class_id
 
 
-async def _read_pdf(file: UploadFile) -> bytes:
-    if file.content_type not in ALLOWED_TYPES:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Only PDF files are allowed")
+async def _read_upload(file: UploadFile) -> bytes:
+    """Any file type is allowed — only emptiness and size are checked."""
     body = await file.read()
     if not body:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "The file is empty")
     if len(body) > MAX_BYTES:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, "File too large (max 25 MB)")
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "File too large (max 50 MB)")
     return body
 
 
@@ -93,10 +91,10 @@ async def upload_chapter_file(
 ):
     """Upload a new PDF for a chapter (multiple files per chapter are allowed)."""
     _, subject_id, class_id = _chapter_context(db, chapter_id)
-    body = await _read_pdf(file)
+    body = await _read_upload(file)
 
     key = s3_service.build_key(class_id, subject_id, chapter_id, file.filename)
-    uri = s3_service.upload_pdf(body, key, file.content_type)
+    uri = s3_service.upload_file(body, key, file.content_type)
 
     record = FileStorageMetadata(
         entity_type=ENTITY_CHAPTER_STUDY_MATERIAL,
@@ -137,10 +135,10 @@ async def replace_chapter_file(
 
     chapter_id = old.entity_id
     _, subject_id, class_id = _chapter_context(db, chapter_id)
-    body = await _read_pdf(file)
+    body = await _read_upload(file)
 
     key = s3_service.build_key(class_id, subject_id, chapter_id, file.filename)
-    uri = s3_service.upload_pdf(body, key, file.content_type)
+    uri = s3_service.upload_file(body, key, file.content_type)
 
     now = datetime.now(timezone.utc)
     stamp = teacher.full_name or str(teacher.teacher_id)

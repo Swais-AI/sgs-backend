@@ -21,6 +21,7 @@ from fastapi import HTTPException, status
 from app.core.config import settings
 
 PREFIX = "study-material"
+ASSIGNMENT_PREFIX = "assignments"
 PRESIGN_EXPIRY = 3600  # 1 hour
 
 
@@ -56,6 +57,15 @@ def build_key(class_id, subject_id, chapter_id, filename: str) -> str:
     )
 
 
+def build_assignment_key(class_id, assignment_id, filename: str) -> str:
+    """assignments/class-18/assignment-42/<ts>-<uuid8>-<slug>.<ext>"""
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return (
+        f"{ASSIGNMENT_PREFIX}/class-{class_id}/assignment-{assignment_id}/"
+        f"{ts}-{uuid.uuid4().hex[:8]}-{_slugify(filename)}"
+    )
+
+
 def to_uri(key: str) -> str:
     return f"s3://{settings.AWS_S3_BUCKET_NAME}/{key}"
 
@@ -71,8 +81,8 @@ def parse_uri(file_url: str) -> tuple[str, str]:
     return settings.AWS_S3_BUCKET_NAME, file_url.lstrip("/")
 
 
-def upload_pdf(body: bytes, key: str, content_type: str = "application/pdf") -> str:
-    """Put the object and return its s3:// URI."""
+def upload_file(body: bytes, key: str, content_type: str = "application/octet-stream") -> str:
+    """Put the object (any file type) and return its s3:// URI."""
     if not settings.AWS_S3_BUCKET_NAME:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "S3 is not configured")
     try:

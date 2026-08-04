@@ -11,6 +11,7 @@ from sqlalchemy import BigInteger, Column, DateTime, Integer, String, Text
 from app.db.session import Base
 
 ENTITY_CHAPTER_STUDY_MATERIAL = "CHAPTER_STUDY_MATERIAL"
+ENTITY_ASSIGNMENT_ATTACHMENT = "ASSIGNMENT_ATTACHMENT"
 
 
 class FileStorageMetadata(Base):
