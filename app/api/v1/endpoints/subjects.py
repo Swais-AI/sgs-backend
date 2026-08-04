@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends
+from typing import Optional
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -12,9 +14,10 @@ router = APIRouter(prefix="/subjects", tags=["subjects"])
 
 @router.get("", response_model=SubjectListResponse)
 def list_subjects(
+    class_id: Optional[int] = Query(None, description="Filter by class; defaults to the teacher's class"),
     teacher: TeacherMaster = Depends(get_current_teacher),
     db: Session = Depends(get_db),
 ):
-    """List subjects for the authenticated teacher's class."""
-    subjects = subject_service.get_subjects(db, teacher)
+    """Subjects for the given class, or the authenticated teacher's class."""
+    subjects = subject_service.get_subjects(db, teacher, class_id=class_id)
     return SubjectListResponse(subjects=subjects, total=len(subjects))

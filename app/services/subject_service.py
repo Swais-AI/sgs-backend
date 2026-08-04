@@ -8,14 +8,15 @@ from app.models.teacher import TeacherMaster
 from app.schemas.subject import SubjectOut
 
 
-def get_subjects(db: Session, teacher: TeacherMaster) -> List[SubjectOut]:
-    """Return subjects for the teacher's class (empty if no class assigned)."""
-    if not teacher.class_id:
+def get_subjects(db: Session, teacher: TeacherMaster, class_id=None) -> List[SubjectOut]:
+    """Subjects for the given class; falls back to the teacher's own class."""
+    target_class = class_id if class_id is not None else teacher.class_id
+    if not target_class:
         return []
 
     rows = (
         db.query(SubjectMaster)
-        .filter(SubjectMaster.class_id == teacher.class_id)
+        .filter(SubjectMaster.class_id == target_class)
         .order_by(SubjectMaster.subject_name)
         .all()
     )

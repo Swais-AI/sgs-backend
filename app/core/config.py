@@ -18,6 +18,12 @@ class Settings(BaseSettings):
 
     AI_SERVICE_URL: str = "http://16.112.236.67:7007"
 
+    # S3 — study material PDFs
+    AWS_REGION: str            = "ap-south-2"
+    AWS_S3_BUCKET_NAME: str    = ""
+    AWS_ACCESS_KEY_ID: str     = ""
+    AWS_SECRET_ACCESS_KEY: str = ""
+
     @property
     def cors_origins_list(self) -> List[str]:
         return [o.strip() for o in self.CORS_ORIGINS.split(",")]
