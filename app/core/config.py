@@ -18,6 +18,11 @@ class Settings(BaseSettings):
 
     AI_SERVICE_URL: str = "http://16.112.236.67:7007"
 
+    # Printed on the lesson-plan masthead. Per-school, so it lives in .env.
+    SCHOOL_NAME: str = ""
+    # One period, in minutes — the form counts periods, the AI counts minutes.
+    PERIOD_MINUTES: int = 45
+
     # S3 — study material PDFs
     AWS_REGION: str            = "ap-south-2"
     AWS_S3_BUCKET_NAME: str    = ""

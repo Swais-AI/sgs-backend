@@ -11,6 +11,7 @@ from app.models.teacher import TeacherMaster
 from app.schemas.lesson_plan import (
     LessonPlanGenerateRequest,
     LessonPlanSaveRequest,
+    LessonPlanCompletionRequest,
     LessonPlanListResponse,
     LessonPlanOut,
 )
@@ -24,13 +25,13 @@ async def generate(
     body: LessonPlanGenerateRequest,
     teacher: TeacherMaster = Depends(get_current_teacher),
 ):
-    """Call Node.js AI service and return a structured lesson plan."""
-    return await generate_lesson_plan(
-        chapter_id=body.chapterId,
-        chapter_name=body.chapterName,
-        duration_minutes=body.durationMinutes,
-        teacher=teacher,
-    )
+    """Call the AI service and return a structured lesson plan."""
+    if not body.chapter:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="topic is required",
+        )
+    return await generate_lesson_plan(body, teacher)
 
 
 @router.get("", response_model=LessonPlanListResponse)
@@ -89,6 +90,38 @@ def save_plan(
     db.commit()
     db.refresh(record)
     return {"lesson_plan_id": record.lesson_plan_id, "message": "Plan saved"}
+
+
+@router.patch("/{plan_id}/completion")
+def record_completion(
+    plan_id: int,
+    body: LessonPlanCompletionRequest,
+    teacher: TeacherMaster = Depends(get_current_teacher),
+    db: Session = Depends(get_db),
+):
+    """
+    Stamp the actual date of completion on a saved plan.
+
+    Separate from generation because the teacher only knows this date after
+    the lesson has been taught — at generation time the field is blank on the
+    paper form too.
+    """
+    record = db.query(TeacherLessonPlan).filter(
+        TeacherLessonPlan.lesson_plan_id == plan_id,
+        TeacherLessonPlan.teacher_id == teacher.teacher_id,
+    ).first()
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Plan not found")
+
+    try:
+        plan = json.loads(record.plan_data) if record.plan_data else {}
+    except (ValueError, TypeError):
+        plan = {}
+    plan.setdefault("header", {})["actual_completion"] = body.actualCompletion.isoformat()
+
+    record.plan_data = json.dumps(plan)
+    db.commit()
+    return {"lesson_plan_id": plan_id, "actual_completion": body.actualCompletion.isoformat()}
 
 
 @router.delete("/{plan_id}", status_code=status.HTTP_204_NO_CONTENT)

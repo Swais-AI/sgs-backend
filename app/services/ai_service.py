@@ -1,5 +1,4 @@
 import re
-import math
 import httpx
 from fastapi import HTTPException, status
 
@@ -32,88 +31,99 @@ def _ai_error(e: Exception):
     raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="AI service unreachable")
 
 
+# Section headings exactly as the AI service emits them, in the order they
+# appear on the school's printed lesson-plan form.
+_SECTIONS: list[tuple[str, str]] = [
+    ("objectives",  "Learning objectives"),
+    ("outcomes",    "Learning outcomes"),
+    ("methodology", "Methodology"),
+    ("tlm",         "TLM"),
+    ("activities",  "Activities"),
+    ("assessment",  "Assessment"),
+    ("homework",    "Home Work"),
+]
+
+_ANY_HEADING = "|".join(re.escape(h) for _, h in _SECTIONS)
+
+_ITEM_MARKER = re.compile(r'^(?:\d+[.)]|[-•*])\s+')
+
+
 def _extract_section(text: str, heading: str) -> str:
-    """Return the raw text block under a numbered section heading."""
-    pattern = rf'\d+\.\s+{re.escape(heading)}.*?\n(.*?)(?=\n\d+\.\s+|\Z)'
-    m = re.search(pattern, text, re.DOTALL | re.IGNORECASE)
+    """
+    Return the block under a `Heading:` line, up to the next known heading,
+    the signature line, or end of text.
+
+    The AI writes headings bare at the start of a line and numbers the items
+    beneath them, so the heading itself is never numbered.
+    """
+    pattern = (
+        rf'^[ \t]*{re.escape(heading)}[ \t]*:[ \t]*$\n'
+        rf'(.*?)'
+        rf'(?=^[ \t]*(?:{_ANY_HEADING})[ \t]*:[ \t]*$|^[ \t]*Sign\.|\Z)'
+    )
+    m = re.search(pattern, text, re.DOTALL | re.IGNORECASE | re.MULTILINE)
     return m.group(1).strip() if m else ""
 
 
 def _bullets(block: str) -> list[str]:
-    """Convert a text block of bullet points into a list of strings."""
-    items = []
+    """
+    Split a block into its numbered or bulleted items.
+
+    A line without a marker continues the item above it, so an item that wraps
+    across lines stays one item. A block with no markers at all (Home Work is
+    written as a paragraph) comes back as a single item.
+    """
+    items: list[str] = []
     for line in block.split("\n"):
         line = line.strip()
         if not line:
             continue
-        # Strip leading bullet markers
-        cleaned = re.sub(r'^[-•*\d]+[.)]\s*', '', line).strip()
-        if cleaned:
-            items.append(cleaned)
-    return items
+        if _ITEM_MARKER.match(line):
+            items.append(_ITEM_MARKER.sub('', line).strip())
+        elif items:
+            items[-1] = f"{items[-1]} {line}"
+        else:
+            items.append(line)
+    return [i for i in items if i]
 
 
-def _parse_lesson_plan(raw_text: str, chapter: str, duration: int, objectives: list, teacher) -> dict:
+def _class_section(teacher) -> str:
+    """`Class 8 A` — the two columns the form prints as one field."""
+    parts = []
+    if teacher.class_id:
+        parts.append(f"Class {teacher.class_id}")
+    if teacher.section_1:
+        parts.append(teacher.section_1)
+    return " ".join(parts)
+
+
+def _parse_lesson_plan(raw_text: str, header: dict, teacher) -> dict:
     """
-    Convert the Node.js plain-text lesson plan into the structured dict
-    that the frontend PlanDisplay component expects.
+    Convert the AI service's plain-text lesson plan into the structured dict
+    the printable form renders.
+
+    The AI echoes a header block above `Learning objectives:` — teacher name,
+    designation, dates. That block is ignored. Those facts are ours: we know
+    who is logged in and what they asked for, and the AI has been observed
+    filling them with "Not specified" or inventing a designation. Only the
+    seven teaching sections are read out of the text.
     """
-    obj_block   = _extract_section(raw_text, "Learning Objectives")
-    mat_block   = _extract_section(raw_text, "Materials Required")
-    intro_block = _extract_section(raw_text, "Lesson Introduction")
-    steps_block = _extract_section(raw_text, "Step-by-Step Teaching Activities")
-    qa_block    = _extract_section(raw_text, "Classroom Interaction Questions")
-    assess_block= _extract_section(raw_text, "Assessment Questions")
-    hw_block    = _extract_section(raw_text, "Homework")
-
-    parsed_objectives = _bullets(obj_block) or objectives or [
-        "Understand the key concepts of the chapter",
-        "Apply knowledge through classroom activities",
-    ]
-    parsed_materials = _bullets(mat_block) or ["Textbook", "Blackboard", "Chalk"]
-
-    # Build three plan sections proportional to duration
-    intro_dur = max(5,  math.floor(duration * 0.20))
-    core_dur  = max(10, math.floor(duration * 0.55))
-    assess_dur= duration - intro_dur - core_dur
-
-    plan_sections = [
-        {
-            "title": "Introduction",
-            "duration": intro_dur,
-            "activity": "Lesson Opening & Warm-up",
-            "teacher_action": _bullets(intro_block)[0] if _bullets(intro_block) else "Introduce the topic and context",
-            "student_action": "Listen, recall prior knowledge, and engage",
-        },
-        {
-            "title": "Core Teaching",
-            "duration": core_dur,
-            "activity": "Step-by-Step Instruction",
-            "teacher_action": _bullets(steps_block)[0] if _bullets(steps_block) else "Explain key concepts with examples",
-            "student_action": "Take notes and participate in discussion",
-        },
-        {
-            "title": "Assessment & Wrap-up",
-            "duration": assess_dur,
-            "activity": "Interactive Q&A and Closure",
-            "teacher_action": _bullets(qa_block)[0] if _bullets(qa_block) else "Ask questions to check understanding",
-            "student_action": "Answer questions and summarise learning",
-        },
-    ]
+    sections = {key: _bullets(_extract_section(raw_text, heading))
+                for key, heading in _SECTIONS}
 
     return {
-        "title": f"Lesson Plan: {chapter}",
-        "duration_minutes": duration,
+        "title": f"Lesson Plan: {header['chapter']}" if header["chapter"] else "Lesson Plan",
+        "header": header,
+        "sections": sections,
+        # Legacy top-level keys, kept so plans saved by the previous version
+        # and any frontend still reading them keep rendering.
+        "chapter_text": header["chapter"],
+        "duration_minutes": header["no_of_periods"],
         "class_name": str(teacher.class_id or ""),
         "section": teacher.section_1 or "",
-        "subject": teacher.subject_name or "",
-        "chapter_text": chapter,
-        "objectives": parsed_objectives[:5],
-        "materials": parsed_materials[:8],
-        "core_concept": intro_block.split("\n")[0] if intro_block else None,
-        "plan_sections": plan_sections,
-        "assessment_method": "\n".join(_bullets(assess_block)[:3]) or "Oral questioning and short written response",
-        "homework": "\n".join(_bullets(hw_block)[:3]) or "Complete the chapter exercises in the textbook",
+        "subject": header["subject"],
+        "objectives": sections["objectives"],
+        "homework": "\n".join(sections["homework"]),
     }
 
 
@@ -141,15 +151,32 @@ async def _chat(message: str, target_language: str, teacher) -> str:
 
 # ── Public functions ──────────────────────────────────────────────────────────
 
-async def generate_lesson_plan(
-    chapter_id: int,
-    chapter_name: str,
-    duration_minutes: int,
-    teacher,
-) -> dict:
+async def generate_lesson_plan(req, teacher) -> dict:
+    """
+    `req` is a LessonPlanGenerateRequest. Header fields fall back to the
+    teacher's own record, so the frontend only has to send what was overridden
+    on the form.
+    """
+    header = {
+        "school_name":          req.schoolName or settings.SCHOOL_NAME,
+        "teacher_name":         teacher.full_name or "",
+        "designation":          req.designation or teacher.role or "Teacher",
+        "class_section":        req.classSection or _class_section(teacher),
+        "subject":              req.subject or teacher.subject_name or "",
+        "chapter":              req.chapter,
+        "no_of_periods":        req.noOfPeriods,
+        "date_of_commencement": req.dateOfCommencement.isoformat() if req.dateOfCommencement else "",
+        "expected_completion":  req.expectedCompletion.isoformat() if req.expectedCompletion else "",
+        # Filled in after the lesson is taught, via PATCH — never at generation.
+        "actual_completion":    "",
+    }
+
     payload = {
-        "chapterId": chapter_id,
-        "durationMinutes": duration_minutes,
+        "chapterId": req.chapterId,
+        "topic": req.chapter,
+        "noOfPeriods": req.noOfPeriods,
+        # Kept for the AI service's current handler, which still reads it.
+        "durationMinutes": req.noOfPeriods * settings.PERIOD_MINUTES,
         "userInfo": _user_info(teacher),
     }
 
@@ -162,7 +189,7 @@ async def generate_lesson_plan(
             r.raise_for_status()
             data = r.json()
             raw_text = data.get("lessonPlan", "")
-            return _parse_lesson_plan(raw_text, chapter_name, duration_minutes, [], teacher)
+            return _parse_lesson_plan(raw_text, header, teacher)
     except Exception as e:
         _ai_error(e)
 
