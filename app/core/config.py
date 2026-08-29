@@ -20,8 +20,15 @@ class Settings(BaseSettings):
 
     # Printed on the lesson-plan masthead. Per-school, so it lives in .env.
     SCHOOL_NAME: str = ""
+
     # One period, in minutes — the form counts periods, the AI counts minutes.
     PERIOD_MINUTES: int = 45
+
+    # Connection-pool budget. SLOTS counts *workers* sharing this database
+    # instance, not services — four uvicorn workers across six APIs is 24.
+    # RESERVE is held back for migrations, pgAdmin and the superuser reserve.
+    DB_SERVICE_SLOTS: int = 12
+    DB_RESERVE: float = 0.2
 
     # S3 — study material PDFs
     AWS_REGION: str            = "ap-south-2"
