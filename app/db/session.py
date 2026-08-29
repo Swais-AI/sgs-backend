@@ -1,16 +1,11 @@
-from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
 from app.core.config import settings
+from app.db.pool import build_engine
 
-# The shared DB role is capped well below what ~40 apps on this box would need,
-# so each app must keep its slice small: at most 5 connections (2 + 3 overflow).
-engine = create_engine(
-    settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_size=2,
-    max_overflow=3,
-)
+# Pool size is derived from the database's own max_connections at startup —
+# see app/db/pool.py. Nothing here needs adjusting per environment.
+engine = build_engine(settings.DATABASE_URL, service="sgs-faculty-api")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
