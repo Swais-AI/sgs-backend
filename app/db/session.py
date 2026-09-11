@@ -1,7 +1,11 @@
+import logging
+
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
 from app.core.config import settings
 from app.db.pool import build_engine
+
+log = logging.getLogger(__name__)
 
 # Pool size is derived from the database's own max_connections at startup —
 # see app/db/pool.py. Nothing here needs adjusting per environment.
@@ -24,4 +28,16 @@ def get_db():
     try:
         yield db
     finally:
-        db.close()
+        # Closing rolls back, which talks to the server. On the AI endpoints the
+        # session sits idle inside a transaction for as long as the upstream call
+        # takes, and a connection dropped in that window makes the rollback raise
+        # — turning a request that already succeeded into a 500. Cleanup is
+        # best-effort; invalidate() discards the socket without touching it.
+        try:
+            db.close()
+        except Exception:
+            log.warning("DB session close failed; discarding connection", exc_info=True)
+            try:
+                db.invalidate()
+            except Exception:
+                pass

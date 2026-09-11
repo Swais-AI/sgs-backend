@@ -51,4 +51,16 @@ def get_current_teacher(
     if not teacher:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Teacher not found")
 
+    # This query opens a transaction that would otherwise stay open for the whole
+    # request. The AI endpoints then wait up to 60s on the upstream service, and
+    # the database kills any session idle *inside a transaction* for 30s
+    # (idle_in_transaction_session_timeout) — which made the session teardown
+    # raise and turned completed requests into 500s.
+    #
+    # Detaching the teacher first, then ending the transaction, leaves the session
+    # merely idle. idle_session_timeout is 0, so that is never killed, and the next
+    # query on this session starts a fresh transaction on its own.
+    db.expunge(teacher)
+    db.rollback()
+
     return teacher
