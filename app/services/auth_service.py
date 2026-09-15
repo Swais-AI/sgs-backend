@@ -6,6 +6,7 @@ from app.models.class_master import ClassMaster
 from app.models.student import StudentMaster
 from app.core.security import verify_password, create_access_token
 from app.schemas.auth import LoginRequest, TokenResponse
+from app.services import student_service
 
 
 def _class_display(class_name: str) -> str:
@@ -33,14 +34,8 @@ def get_class_context(db: Session, teacher: TeacherMaster) -> tuple[str | None, 
     cls = db.query(ClassMaster).filter(ClassMaster.class_id == teacher.class_id).first()
     class_name = (cls.class_name if cls and cls.class_name else _class_display(teacher.class_id))
 
-    total_students = (
-        db.query(StudentMaster)
-        .filter(
-            StudentMaster.class_id == teacher.class_id,
-            StudentMaster.is_active.is_(True),
-        )
-        .count()
-    )
+    # Same filter as the Students tab — see student_service.
+    total_students = student_service.roll_count(db, teacher.class_id)
     return class_name, total_students
 
 

@@ -6,6 +6,7 @@ from app.api.deps import get_current_teacher
 from app.models.teacher import TeacherMaster
 from app.models.student import StudentMaster
 from app.schemas.student import StudentListResponse, StudentOut
+from app.services import student_service
 
 router = APIRouter(prefix="/students", tags=["students"])
 
@@ -15,10 +16,11 @@ def list_students(
     teacher: TeacherMaster = Depends(get_current_teacher),
     db: Session = Depends(get_db),
 ):
-    # Students linked to teacher via class_id (no direct teacher_id FK in sgs schema)
+    # Students linked to teacher via class_id (no direct teacher_id FK in sgs schema).
+    # Uses the same filter as the dashboard headcount — see student_service — so
+    # the two numbers cannot disagree.
     students = (
-        db.query(StudentMaster)
-        .filter(StudentMaster.class_id == teacher.class_id)
+        student_service.roll_query(db, teacher.class_id)
         .order_by(StudentMaster.roll_no)
         .all()
     )

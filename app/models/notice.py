@@ -17,3 +17,7 @@ class NoticeBoard(Base):
     notice_date      = Column(Date, nullable=True)
     applicable_class = Column(String, nullable=True)
     posted_by        = Column(BigInteger, nullable=True)
+    # Soft-delete marker. The admin dashboard deletes a notice by setting this,
+    # so anything reading notices must filter on it or deleted announcements
+    # keep appearing on the faculty dashboard.
+    record_status    = Column(String, nullable=True)

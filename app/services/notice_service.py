@@ -27,7 +27,17 @@ def get_notices(db: Session, teacher: TeacherMaster, limit: int = 20) -> List[No
 
     rows = (
         db.query(NoticeBoard)
-        .filter(or_(*conds))
+        .filter(
+            or_(*conds),
+            # Deleting a notice in the admin dashboard is a soft delete — it sets
+            # record_status rather than removing the row. Without this the
+            # Announcements panel keeps showing notices the school has deleted.
+            # NULL is treated as active: older rows predate the column being used.
+            or_(
+                NoticeBoard.record_status == "Active",
+                NoticeBoard.record_status.is_(None),
+            ),
+        )
         .order_by(NoticeBoard.notice_date.desc().nullslast())
         .limit(limit)
         .all()
