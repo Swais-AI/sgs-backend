@@ -59,21 +59,33 @@ def sso_token(
     db: Session = Depends(get_db),
 ):
     """
-    Internal SSO endpoint — called by staging after Google OAuth.
-    Exchanges a verified teacher email for a JWT without requiring a password.
-    Protected by a shared secret header (X-SSO-Secret).
+    Internal SSO endpoint — called by the login portal once it has verified the
+    teacher, either through Google (email) or an SMS OTP (phone). Exchanges that
+    verified identifier for a JWT without requiring a password. Protected by a
+    shared secret header (X-SSO-Secret).
     """
     if not settings.SSO_SECRET or x_sso_secret != settings.SSO_SECRET:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid SSO secret")
 
-    email = payload.email.lower()
+    roll = db.query(TeacherMaster).filter(TeacherMaster.is_active == True)
 
-    teacher = db.query(TeacherMaster).filter(
-        TeacherMaster.email_id == email,
-        TeacherMaster.is_active == True,
-    ).first()
+    if payload.email:
+        email = payload.email.lower()
+        teacher = roll.filter(TeacherMaster.email_id == email).first()
+    else:
+        # phone is a bigint column holding ten bare digits — no country code,
+        # no separators. Strip whatever the portal sends down to the last ten.
+        digits = "".join(ch for ch in (payload.phone or "") if ch.isdigit())[-10:]
+        if len(digits) != 10:
+            raise HTTPException(status.HTTP_400_BAD_REQUEST, "Phone must contain ten digits")
+        teacher = roll.filter(TeacherMaster.phone == int(digits)).first()
+
     if not teacher:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Teacher not found")
+
+    # The response echoes the teacher's own email, which is the one the
+    # dashboard shows — not necessarily the identifier used to log in.
+    email = (teacher.email_id or "").lower()
 
     user = db.query(UserMaster).filter(UserMaster.login_id == email).first()
     user_id = user.user_id if user else teacher.teacher_id
