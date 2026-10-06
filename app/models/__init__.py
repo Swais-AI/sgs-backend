@@ -7,8 +7,9 @@ from app.models.lesson_plan import TeacherLessonPlan
 from app.models.chapter     import SgsChapterContent
 from app.models.question_paper import TeacherQuestionPaper
 from app.models.parent_notification import ParentNotification
+from app.models.teacher_class_map import TeacherClassMap
 
 __all__ = ["UserMaster", "TeacherMaster", "TeacherNote",
            "StudentMaster", "Assessment", "AssessmentResult",
            "TeacherLessonPlan", "SgsChapterContent", "TeacherQuestionPaper",
-           "ParentNotification"]
+           "ParentNotification", "TeacherClassMap"]

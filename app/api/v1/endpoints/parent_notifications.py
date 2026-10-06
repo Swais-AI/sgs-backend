@@ -22,7 +22,7 @@ from pydantic import BaseModel, field_validator
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_current_teacher
+from app.api.deps import get_active_class_id, get_current_teacher
 from app.db.session import get_db
 from app.models.parent_notification import (
     ParentNotification, ALLOWED_TYPES, CHANNEL_MANUAL, TYPE_GENERAL,
@@ -89,12 +89,16 @@ def _out(n: ParentNotification, student_name: Optional[str] = None) -> Notificat
 def send_notification(
     body: NotificationCreate,
     teacher: TeacherMaster = Depends(get_current_teacher),
+    class_id: Optional[int] = Depends(get_active_class_id),
     db: Session = Depends(get_db),
 ):
     """Record a message to a student's parents. The student must be on this
-    teacher's roll — otherwise a teacher could message any child in the school."""
+    teacher's roll — otherwise a teacher could message any child in the school.
+
+    `class_id` picks which of the teacher's classes the child is in; it is
+    checked against their assignments before we get here."""
     student = (
-        student_service.roll_query(db, teacher.class_id)
+        student_service.roll_query(db, class_id)
         .filter(StudentMaster.student_id == body.student_id)
         .first()
     )

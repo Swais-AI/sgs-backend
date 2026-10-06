@@ -24,6 +24,21 @@ class SSOTokenRequest(BaseModel):
         return self
 
 
+class ClassOption(BaseModel):
+    """
+    One class a teacher may work in — what the faculty class selector renders.
+
+    `class_assigned` and `section` below still describe the *primary*
+    assignment, so a client that ignores this list behaves exactly as before.
+    """
+
+    class_id: int
+    class_name: str | None = None
+    sections: list[str] = []
+    subjects: list[str] = []
+    is_primary: bool = False
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -36,6 +51,7 @@ class TokenResponse(BaseModel):
     avatar_initials: str | None = None
     school_name: str | None = None
     total_students: int | None = None
+    classes: list[ClassOption] = []
 
 
 class MeResponse(BaseModel):
@@ -48,3 +64,4 @@ class MeResponse(BaseModel):
     avatar_initials: str | None = None
     school_name: str | None = None
     total_students: int | None = None
+    classes: list[ClassOption] = []
